@@ -6,7 +6,6 @@ local AceGUI = LibStub("AceGUI-3.0")
 AddOn.DF = {};
 AddOn.DF["profile"] = {
 	["HS"] = true,
-	["innkeeper"] = true,
 	["garHS"] = true,
 	["dalHS"] = true,
 	["blacklist"] = "",
@@ -94,7 +93,6 @@ function DataStore:GetContainerItemCount(character, searchedID)
 
 	--This is modified part checking for general ignored items
 	if AddOn.db.HS and searchedID == 6948 then return bagCount, bankCount, voidCount, reagentBankCount end
-	if AddOn.db.innkeeper and searchedID == 64488 then return bagCount, bankCount, voidCount, reagentBankCount end
 	if AddOn.db.garHS and searchedID == 110560 then return bagCount, bankCount, voidCount, reagentBankCount end
 	if AddOn.db.dalHS and searchedID == 140192 then return bagCount, bankCount, voidCount, reagentBankCount end
 	local searchedItem = GetItemInfo(searchedID)
@@ -148,22 +146,15 @@ local function SetupOptions()
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
-			innkeeper = {
-				order = 3,
-				type = "toggle",
-				name = L["Innkeeper's Daughter"],
-				get = function(info) return AddOn.db[ info[#info] ] end,
-				set = function(info, value) AddOn.db[ info[#info] ] = value end,
-			},
 			garHS = {
-				order = 4,
+				order = 3,
 				type = "toggle",
 				name = L["Garrison Hearthstone"],
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 			dalHS = {
-				order = 5,
+				order = 4,
 				type = "toggle",
 				name = L["Dalaran Hearthstone"],
 				get = function(info) return AddOn.db[ info[#info] ] end,

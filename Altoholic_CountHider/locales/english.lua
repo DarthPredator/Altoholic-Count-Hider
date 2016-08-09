@@ -6,7 +6,6 @@ L["Altoholic_Hider_Desc"] = [[These options will allow you to hide count lines o
 By default it hides counters for Hearthstone and Garrison Hearthstone.
 You can also add your own items via "Ignore List" option.]]
 L["Hearthstone"] = true
-L["Innkeeper's Daughter"] = true
 L["Garrison Hearthstone"] = true
 L["Dalaran Hearthstone"] = true
 L["Ignore List"] = true
