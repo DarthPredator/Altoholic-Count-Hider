@@ -8,6 +8,7 @@ You can also add your own items via "Ignore List" option.]]
 L["Hearthstone"] = true
 L["Garrison Hearthstone"] = true
 L["Dalaran Hearthstone"] = true
+L["Flight Master's Whistle"] = true
 L["Ignore List"] = true
 L["Altoholic_Hider_BL_Desc"] = [[Count for items listed here will not be shown in tooltips.
 Can be either name or link. Items need to be separated by comma WITHOUT spaces.]]

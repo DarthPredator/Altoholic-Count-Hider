@@ -8,6 +8,7 @@ AddOn.DF["profile"] = {
 	["HS"] = true,
 	["garHS"] = true,
 	["dalHS"] = true,
+	["whistle"] = true,
 	["blacklist"] = "",
 };
 
@@ -95,6 +96,7 @@ function DataStore:GetContainerItemCount(character, searchedID)
 	if AddOn.db.HS and searchedID == 6948 then return bagCount, bankCount, voidCount, reagentBankCount end
 	if AddOn.db.garHS and searchedID == 110560 then return bagCount, bankCount, voidCount, reagentBankCount end
 	if AddOn.db.dalHS and searchedID == 140192 then return bagCount, bankCount, voidCount, reagentBankCount end
+	if AddOn.db.whistle and searchedID == 141605 then return bagCount, bankCount, voidCount, reagentBankCount end
 	local searchedItem = GetItemInfo(searchedID)
 	if searchedItem and IgnoreThis[searchedItem] then return bagCount, bankCount, voidCount, reagentBankCount end
 	--End of modified part
@@ -160,8 +162,15 @@ local function SetupOptions()
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
-			blacklist = {
+			whistle = {
 				order = 5,
+				type = "toggle",
+				name = L["Flight Master's Whistle"],
+				get = function(info) return AddOn.db[ info[#info] ] end,
+				set = function(info, value) AddOn.db[ info[#info] ] = value end,
+			},
+			blacklist = {
+				order = 6,
 				name = L["Ignore List"],
 				desc = L["Altoholic_Hider_BL_Desc"],
 				type = 'input',
