@@ -1,9 +1,9 @@
-﻿## Interface: 70000
+﻿## Interface: 70200
 ## Title: Altoholic |cff9482c9Count Hider|r
 ## Notes: Altoholic's extention allowing you to remove counters in tooltip for some items
 ## Notes-ruRU: Расширение Altoholic'а, которое позволяет скрыть счетчики на некоторых предметах
 ## Author: Darth Predator
-## Version: 1.04
+## Version: 1.05
 ## Dependencies: Altoholic, DataStore, DataStore_Containers
 ## SavedVariables: Altoholic_CountHiderDB
 
