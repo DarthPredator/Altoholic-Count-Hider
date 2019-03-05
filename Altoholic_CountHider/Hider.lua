@@ -9,7 +9,9 @@ AddOn.DF["profile"] = {
 	["garHS"] = true,
 	["dalHS"] = true,
 	["whistle"] = true,
+	["DarkmoonGuide"] = true,
 	["blacklist"] = "",
+	["ignoreAllEquipped"] = false,
 };
 
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, false);
@@ -21,7 +23,7 @@ Engine[3] = AddOn.DF["profile"];
 _G[AddOnName] = Engine;
 
 local _G = _G
-local pairs = pairs
+local pairs, next = pairs, next
 local tonumber = tonumber
 local setmetatable, getmetatable = setmetatable, getmetatable
 local string_sub = string.sub
@@ -64,6 +66,16 @@ AddOn.Options = {
 	args = {},
 }
 
+AddOn.ItemsToFind = {
+	[6948] = true,
+	[110560] = true,
+	[140192] = true,
+	[141605] = true,
+	[71634] = true,
+}
+AddOn.ItemNames = {}
+AddOn.InfoQueued = {}
+
 local IgnoreThis = {}
 local function BuildBlacklist(...)
 	twipe(IgnoreThis)
@@ -97,6 +109,7 @@ function DataStore:GetContainerItemCount(character, searchedID)
 	if AddOn.db.garHS and searchedID == 110560 then return bagCount, bankCount, voidCount, reagentBankCount end
 	if AddOn.db.dalHS and searchedID == 140192 then return bagCount, bankCount, voidCount, reagentBankCount end
 	if AddOn.db.whistle and searchedID == 141605 then return bagCount, bankCount, voidCount, reagentBankCount end
+	if AddOn.db.DarkmoonGuide and searchedID == 71634 then return bagCount, bankCount, voidCount, reagentBankCount end
 	local searchedItem = GetItemInfo(searchedID)
 	if searchedItem and IgnoreThis[searchedItem] then return bagCount, bankCount, voidCount, reagentBankCount end
 	--End of modified part
@@ -130,7 +143,30 @@ function DataStore:GetContainerItemCount(character, searchedID)
 	return bagCount, bankCount, voidCount, reagentBankCount
 end
 
+function DataStore:GetInventoryItemCount(character, searchedID)
+	if AddOn.db.ignoreAllEquipped then return 0 end
+	character = _G["DataStore_InventoryDB"].global.Characters[character] --Mod to account for altoholc passing string for some reason
+
+	local searchedItem = GetItemInfo(searchedID)
+	
+	local count = 0
+	for _, item in pairs(character.Inventory) do
+		if searchedItem and not IgnoreThis[searchedItem] then
+			if type(item) == "number" then		-- saved as a number ? this is the itemID
+				if (item == searchedID) then
+					count = count + 1
+				end
+			elseif tonumber(item:match("item:(%d+)")) == searchedID then		-- otherwise it's the item link
+				count = count + 1
+			end
+		end
+	end
+
+	return count
+end
+
 local function SetupOptions()
+	if ACD.BlizOptions["Altoholic_CountHider"] or next(AddOn.InfoQueued) or next(AddOn.ItemsToFind) then return end
 	AddOn.Options.args.general = {
 		order = 1,
 		type = "group",
@@ -144,33 +180,40 @@ local function SetupOptions()
 			HS = {
 				order = 2,
 				type = "toggle",
-				name = L["Hearthstone"],
+				name = AddOn.ItemNames[6948],
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 			garHS = {
 				order = 3,
 				type = "toggle",
-				name = L["Garrison Hearthstone"],
+				name = AddOn.ItemNames[110560],
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 			dalHS = {
 				order = 4,
 				type = "toggle",
-				name = L["Dalaran Hearthstone"],
+				name = AddOn.ItemNames[140192],
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 			whistle = {
 				order = 5,
 				type = "toggle",
-				name = L["Flight Master's Whistle"],
+				name = AddOn.ItemNames[141605],
+				get = function(info) return AddOn.db[ info[#info] ] end,
+				set = function(info, value) AddOn.db[ info[#info] ] = value end,
+			},
+			DarkmoonGuide = {
+				order = 6,
+				type = "toggle",
+				name = AddOn.ItemNames[71634],
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 			blacklist = {
-				order = 6,
+				order = 20,
 				name = L["Ignore List"],
 				desc = L["Altoholic_Hider_BL_Desc"],
 				type = 'input',
@@ -178,6 +221,14 @@ local function SetupOptions()
 				multiline = true,
 				get = function(info) return AddOn.db[ info[#info] ] end,
 				set = function(info, value) AddOn.db[ info[#info] ] = value; BLPrepare(value) end,
+			},
+			ignoreAllEquipped = {
+				order = 21,
+				type = "toggle",
+				name = L["Ignore all quipped"],
+				desc = L['Hides all "Equipped" lines for the item even if it is not included in ignore list.'],
+				get = function(info) return AddOn.db[ info[#info] ] end,
+				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 		},
 	}
@@ -188,6 +239,10 @@ local function SetupOptions()
 
 	AC:RegisterOptionsTable("Altoholic_CountHider", AddOn.Options)
 	ACD:AddToBlizOptions("Altoholic_CountHider", "Altoholic |cff9482c9Count Hider|r")
+
+	_G["SlashCmdList"].ALTOHOLIC_COUNTHIDER_CONFIG = AddOn.ToggleConfig
+	SLASH_ALTOHOLIC_COUNTHIDER_CONFIG1 = "/altcount"
+	SLASH_ALTOHOLIC_COUNTHIDER_CONFIG2 = "/фдесщгте"
 end
 
 function AddOn:CopyTable(currentTable, defaultTable)
@@ -219,12 +274,29 @@ end
 function AddOn:UpdateAll()
 	self.db = self.data.profile;
 	BLPrepare(AddOn.db.blacklist)
-
-	collectgarbage('collect');
 end
 
 function AddOn:PLAYER_LOGIN()
 	BLPrepare(AddOn.db.blacklist)
+end
+
+local function GetItemNames(id)
+	local name = GetItemInfo(id)
+	if not name then
+		AddOn.InfoQueued[id] = true
+		return
+	end
+	AddOn.ItemNames[id] = name
+	AddOn.ItemsToFind[id] = nil
+	-- print(id,name)
+end
+
+function AddOn:GET_ITEM_INFO_RECEIVED(event, id)
+	if AddOn.InfoQueued[id] then 
+		AddOn.InfoQueued[id] = nil
+		GetItemNames(id)
+		if not ACD.BlizOptions["Altoholic_CountHider"] and not next(AddOn.InfoQueued) and not next(AddOn.ItemsToFind) then SetupOptions() end
+	end
 end
 
 function AddOn:OnInitialize()
@@ -250,11 +322,11 @@ function AddOn:OnInitialize()
 	self.data.RegisterCallback(self, "OnProfileReset", "UpdateAll")
 	self.db = self.data.profile;
 
-	SetupOptions()
 	BLPrepare(AddOn.db.blacklist)
 	self:RegisterEvent("PLAYER_LOGIN")
-
-	_G["SlashCmdList"].ALTOHOLIC_COUNTHIDER_CONFIG = AddOn.ToggleConfig
-	SLASH_ALTOHOLIC_COUNTHIDER_CONFIG1 = "/altcount"
-	SLASH_ALTOHOLIC_COUNTHIDER_CONFIG2 = "/фдесщгте"
+	self:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+	
+	--Build item names list
+	for id,_ in pairs(AddOn.ItemsToFind) do GetItemNames(id) end
+	SetupOptions()
 end

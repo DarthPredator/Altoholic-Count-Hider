@@ -12,3 +12,5 @@ L["Flight Master's Whistle"] = true
 L["Ignore List"] = true
 L["Altoholic_Hider_BL_Desc"] = [[Count for items listed here will not be shown in tooltips.
 Can be either name or link. Items need to be separated by comma WITHOUT spaces.]]
+L["Ignore all quipped"] = true
+L['Hides all "Equipped" lines for the item even if it is not included in ignore list.'] = true
