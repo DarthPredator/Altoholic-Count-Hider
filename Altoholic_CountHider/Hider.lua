@@ -2,13 +2,10 @@
 local AddOn = LibStub("AceAddon-3.0"):NewAddon("Altoholic_CountHider", "AceConsole-3.0", "AceEvent-3.0")
 --GLOBALS: CreateFrame, hooksecurefunc, LibStub
 local AceGUI = LibStub("AceGUI-3.0")
+local MVC = LibStub("LibMVC-1.0")
 
 AddOn.DF = {};
 AddOn.DF["profile"] = {
-	["HS"] = true,
-	["garHS"] = true,
-	["dalHS"] = true,
-	["whistle"] = true,
 	["DarkmoonGuide"] = true,
 	["blacklist"] = "",
 	["ignoreAllEquipped"] = false,
@@ -21,6 +18,8 @@ Engine[2] = Locale;
 Engine[3] = AddOn.DF["profile"];
 
 _G[AddOnName] = Engine;
+
+AddOn.hookModules = 2;
 
 local _G = _G
 local pairs, next = pairs, next
@@ -67,10 +66,6 @@ AddOn.Options = {
 }
 
 AddOn.ItemsToFind = {
-	[6948] = true,
-	[110560] = true,
-	[140192] = true,
-	[141605] = true,
 	[71634] = true,
 }
 AddOn.ItemNames = {}
@@ -87,82 +82,107 @@ local function BuildBlacklist(...)
 		end
 	end
 end
+
 local function BLPrepare(value)
 	BuildBlacklist(strSplit(",", value))
+	AddOn.AltoholicTooltipService:RefreshTooltip()
+end
+
+local function CleanUpProfile()
+	if AddOn.db.HS ~= nil then AddOn.db.HS = nil end
+	if AddOn.db.garHS ~= nil then AddOn.db.garHS = nil end
+	if AddOn.db.dalHS ~= nil then AddOn.db.dalHS = nil end
+	if AddOn.db.whistle ~= nil then AddOn.db.whistle = nil end
 end
 
 local MAIN_BANK_SLOTS = 100
-function DataStore:GetContainerItemCount(character, searchedID)
-	local bagCount = 0
-	local bankCount = 0
-	local voidCount = 0
-	local reagentBankCount = 0
-	local id
+local function HookContainers()
+	function DataStore:GetContainerItemCount(character, searchedID)
+		if not DataStore_Containers then return 0, 0, 0 ,0 end
+		local bagCount = 0
+		local bankCount = 0
+		local voidCount = 0
+		local reagentBankCount = 0
+		local id
 
-	character = _G["DataStore_ContainersDB"].global.Characters[character] --Mod to account for altoholc passing string for some reason
+		character = DataStore_Containers.db.global.Characters[character]
+		-- character = _G["DataStore_ContainersDB"].global.Characters[character] --Mod to account for altoholc passing string for some reason
 
-	-- old voidstorage, simply delete it, might still be listed if players haven't logged on all their alts
-	character.Containers["VoidStorage"] = nil
+		-- old voidstorage, simply delete it, might still be listed if players haven't logged on all their alts
+		character.Containers["VoidStorage"] = nil
 
-	--This is modified part checking for general ignored items
-	if AddOn.db.HS and searchedID == 6948 then return bagCount, bankCount, voidCount, reagentBankCount end
-	if AddOn.db.garHS and searchedID == 110560 then return bagCount, bankCount, voidCount, reagentBankCount end
-	if AddOn.db.dalHS and searchedID == 140192 then return bagCount, bankCount, voidCount, reagentBankCount end
-	if AddOn.db.whistle and searchedID == 141605 then return bagCount, bankCount, voidCount, reagentBankCount end
-	if AddOn.db.DarkmoonGuide and searchedID == 71634 then return bagCount, bankCount, voidCount, reagentBankCount end
-	local searchedItem = GetItemInfo(searchedID)
-	if searchedItem and IgnoreThis[searchedItem] then return bagCount, bankCount, voidCount, reagentBankCount end
-	--End of modified part
+		--This is modified part checking for general ignored items
+		if AddOn.db.DarkmoonGuide and searchedID == 71634 then return bagCount, bankCount, voidCount, reagentBankCount end
+		local searchedItem = GetItemInfo(searchedID)
+		if searchedItem and IgnoreThis[searchedItem] then return bagCount, bankCount, voidCount, reagentBankCount end
+		--End of modified part
 
-	for containerName, container in pairs(character.Containers) do
-		for slotID = 1, container.size do
-			id = container.ids[slotID]
-			
-			if (id) and (id == searchedID) then
-				local itemCount = container.counts[slotID] or 1
-				if (containerName == "VoidStorage.Tab1") or (containerName == "VoidStorage.Tab2") then
-					voidCount = voidCount + 1
-				elseif (containerName == "Bag"..MAIN_BANK_SLOTS) then
-					bankCount = bankCount + itemCount
-				elseif (containerName == "Bag-2") then
-					bagCount = bagCount + itemCount
-				elseif (containerName == "Bag-3") then
-					reagentBankCount = reagentBankCount + itemCount
-				else
-					local bagNum = tonumber(string_sub(containerName, 4))
-					if (bagNum >= 0) and (bagNum <= 4) then
-						bagCount = bagCount + itemCount
-					else
+		for containerName, container in pairs(character.Containers) do
+			for slotID = 1, container.size do
+				id = container.ids[slotID]
+				
+				if (id) and (id == searchedID) then
+					local itemCount = container.counts[slotID] or 1
+					if (containerName == "VoidStorage.Tab1") or (containerName == "VoidStorage.Tab2") then
+						voidCount = voidCount + 1
+					elseif (containerName == "Bag"..MAIN_BANK_SLOTS) then
 						bankCount = bankCount + itemCount
+					elseif (containerName == "Bag-2") then
+						bagCount = bagCount + itemCount
+					elseif (containerName == "Bag-3") then
+						reagentBankCount = reagentBankCount + itemCount
+					else
+						local bagNum = tonumber(string_sub(containerName, 4))
+						if (bagNum >= 0) and (bagNum <= 4) then
+							bagCount = bagCount + itemCount
+						else
+							bankCount = bankCount + itemCount
+						end
 					end
 				end
 			end
 		end
-	end
 
-	return bagCount, bankCount, voidCount, reagentBankCount
+		return bagCount, bankCount, voidCount, reagentBankCount
+	end
 end
 
-function DataStore:GetInventoryItemCount(character, searchedID)
-	if AddOn.db.ignoreAllEquipped then return 0 end
-	character = _G["DataStore_InventoryDB"].global.Characters[character] --Mod to account for altoholc passing string for some reason
+local function HookInventory()
+	function DataStore:GetInventoryItemCount(character, searchedID)
+		if AddOn.db.ignoreAllEquipped or not DataStore_Inventory then return 0 end
 
-	local searchedItem = GetItemInfo(searchedID)
-	
-	local count = 0
-	for _, item in pairs(character.Inventory) do
-		if searchedItem and not IgnoreThis[searchedItem] then
-			if type(item) == "number" then		-- saved as a number ? this is the itemID
-				if (item == searchedID) then
+		character = DataStore_Inventory.db.global.Characters[character] --Mod to account for altoholc passing string for some reason
+
+		local searchedItem = GetItemInfo(searchedID)
+		
+		local count = 0
+		for _, item in pairs(character.Inventory) do
+			if searchedItem and not IgnoreThis[searchedItem] then
+				if type(item) == "number" then		-- saved as a number ? this is the itemID
+					if (item == searchedID) then
+						count = count + 1
+					end
+				elseif tonumber(item:match("item:(%d+)")) == searchedID then		-- otherwise it's the item link
 					count = count + 1
 				end
-			elseif tonumber(item:match("item:(%d+)")) == searchedID then		-- otherwise it's the item link
-				count = count + 1
 			end
 		end
-	end
 
-	return count
+		return count
+	end
+end
+
+function AddOn:HookAddons(event, addon)
+	if addon == "DataStore_Inventory" then
+		HookInventory()
+		AddOn.hookModules = AddOn.hookModules - 1
+	elseif addon == "DataStore_Containers" then
+		HookContainers()
+		AddOn.hookModules = AddOn.hookModules - 1
+	end
+	if AddOn.hookModules == 0 then
+		self:UnregisterEvent(event)
+	end
 end
 
 local function SetupOptions()
@@ -176,34 +196,6 @@ local function SetupOptions()
 				order = 1,
 				type = "description",
 				name = L["Altoholic_Hider_Desc"],
-			},
-			HS = {
-				order = 2,
-				type = "toggle",
-				name = AddOn.ItemNames[6948],
-				get = function(info) return AddOn.db[ info[#info] ] end,
-				set = function(info, value) AddOn.db[ info[#info] ] = value end,
-			},
-			garHS = {
-				order = 3,
-				type = "toggle",
-				name = AddOn.ItemNames[110560],
-				get = function(info) return AddOn.db[ info[#info] ] end,
-				set = function(info, value) AddOn.db[ info[#info] ] = value end,
-			},
-			dalHS = {
-				order = 4,
-				type = "toggle",
-				name = AddOn.ItemNames[140192],
-				get = function(info) return AddOn.db[ info[#info] ] end,
-				set = function(info, value) AddOn.db[ info[#info] ] = value end,
-			},
-			whistle = {
-				order = 5,
-				type = "toggle",
-				name = AddOn.ItemNames[141605],
-				get = function(info) return AddOn.db[ info[#info] ] end,
-				set = function(info, value) AddOn.db[ info[#info] ] = value end,
 			},
 			DarkmoonGuide = {
 				order = 6,
@@ -303,6 +295,7 @@ function AddOn:OnInitialize()
 	if not Altoholic_CountHiderDB then
 		Altoholic_CountHiderDB = {}
 	end
+	AddOn.AltoholicTooltipService = MVC:GetService("AltoholicUI.Tooltip")
 
 	self.db = tcopy(self.DF.profile, true);
 	if Altoholic_CountHiderDB then
@@ -329,4 +322,7 @@ function AddOn:OnInitialize()
 	--Build item names list
 	for id,_ in pairs(AddOn.ItemsToFind) do GetItemNames(id) end
 	SetupOptions()
+	CleanUpProfile()
+	
+	self:RegisterEvent("ADDON_LOADED", "HookAddons")
 end
