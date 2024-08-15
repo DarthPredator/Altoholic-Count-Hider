@@ -3,7 +3,7 @@
 ## Notes: Altoholic's extention allowing you to remove counters in tooltip for some items
 ## Notes-ruRU: Расширение Altoholic'а, которое позволяет скрыть счетчики на некоторых предметах
 ## Author: Darth Predator
-## Version: 1.1
+## Version: 1.11
 ## Dependencies: Altoholic
 ## SavedVariables: Altoholic_CountHiderDB
 
