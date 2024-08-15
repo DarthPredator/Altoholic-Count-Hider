@@ -118,7 +118,8 @@ local function HookContainers()
 
 		for containerID, container in pairs(characterDB.Containers) do
 			-- get the container count
-			count = _G.DataStore:GetItemCountByID(_G.DataStore:GetContainer(character, containerID), searchedID)
+			count = _G.DataStore:GetItemCountByID(container, searchedID)
+			-- count = _G.DataStore:GetItemCountByID(_G.DataStore:GetContainer(character, containerID), searchedID)
 			
 			if containerID <= 4 then
 				bagCount = bagCount + count
