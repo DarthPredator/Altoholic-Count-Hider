@@ -19,7 +19,7 @@ Engine[3] = AddOn.DF["profile"];
 
 _G[AddOnName] = Engine;
 
-AddOn.hookModules = 2;
+-- AddOn.hookModules = 2;
 
 local _G = _G
 local pairs, next = pairs, next
@@ -31,7 +31,7 @@ local type = type
 local table = table
 local twipe = table.wipe
 local select = select
-local GetItemInfo = GetItemInfo
+local C_Item_GetItemInfo = C_Item.GetItemInfo
 local SETTINGS = SETTINGS
 
 local function tcopy(t, deep, seen)
@@ -52,7 +52,7 @@ local function tcopy(t, deep, seen)
 	return nt
 end
 
-AddOn.Version = GetAddOnMetadata("Altoholic_CountHider", "Version")
+AddOn.Version = C_AddOns.GetAddOnMetadata("Altoholic_CountHider", "Version")
 AddOn.myname = UnitName("player")
 AddOn.myrealm = GetRealmName()
 
@@ -76,7 +76,7 @@ local function BuildBlacklist(...)
 	twipe(IgnoreThis)
 	for index = 1, select('#', ...) do
 		local name = select(index, ...)
-		local isLink = GetItemInfo(name)
+		local isLink = C_Item_GetItemInfo(name)
 		if isLink then
 			IgnoreThis[isLink] = true
 		end
@@ -98,65 +98,52 @@ end
 local MAIN_BANK_SLOTS = 100
 local function HookContainers()
 	function DataStore:GetContainerItemCount(character, searchedID)
-		if not DataStore_Containers then return 0, 0, 0 ,0 end
+		-- if not DataStore_Containers then return 0, 0, 0 ,0 end
 		local bagCount = 0
 		local bankCount = 0
 		local voidCount = 0
 		local reagentBankCount = 0
 		local id
 
-		character = DataStore_Containers.db.global.Characters[character]
-		-- character = _G["DataStore_ContainersDB"].global.Characters[character] --Mod to account for altoholc passing string for some reason
+		local characterDB = _G.DataStore:GetCharacterDB("DataStore_Containers_Characters") --Mod to account for altoholc passing string for some reason
 
 		-- old voidstorage, simply delete it, might still be listed if players haven't logged on all their alts
-		character.Containers["VoidStorage"] = nil
+		characterDB.Containers["VoidStorage"] = nil
 
 		--This is modified part checking for general ignored items
 		if AddOn.db.DarkmoonGuide and searchedID == 71634 then return bagCount, bankCount, voidCount, reagentBankCount end
-		local searchedItem = GetItemInfo(searchedID)
+		local searchedItem = C_Item_GetItemInfo(searchedID)
 		if searchedItem and IgnoreThis[searchedItem] then return bagCount, bankCount, voidCount, reagentBankCount end
 		--End of modified part
 
-		for containerName, container in pairs(character.Containers) do
-			for slotID = 1, container.size do
-				id = container.ids[slotID]
-				
-				if (id) and (id == searchedID) then
-					local itemCount = container.counts[slotID] or 1
-					if (containerName == "VoidStorage.Tab1") or (containerName == "VoidStorage.Tab2") then
-						voidCount = voidCount + 1
-					elseif (containerName == "Bag"..MAIN_BANK_SLOTS) then
-						bankCount = bankCount + itemCount
-					elseif (containerName == "Bag-2") then
-						bagCount = bagCount + itemCount
-					elseif (containerName == "Bag-3") then
-						reagentBankCount = reagentBankCount + itemCount
-					else
-						local bagNum = tonumber(string_sub(containerName, 4))
-						if (bagNum >= 0) and (bagNum <= 4) then
-							bagCount = bagCount + itemCount
-						else
-							bankCount = bankCount + itemCount
-						end
-					end
-				end
+		for containerID, container in pairs(characterDB.Containers) do
+			-- get the container count
+			count = _G.DataStore:GetItemCountByID(_G.DataStore:GetContainer(character, containerID), searchedID)
+			
+			if containerID <= 4 then
+				bagCount = bagCount + count
+			elseif containerID == 5 and isRetail then
+				reagentBagCount = reagentBagCount + count
+			else
+				bankCount = bankCount + count
 			end
 		end
-
-		return bagCount, bankCount, voidCount, reagentBankCount
+	
+		return bagCount, bankCount, reagentBagCount
 	end
 end
 
 local function HookInventory()
 	function DataStore:GetInventoryItemCount(character, searchedID)
+	-- print(character, searchID)
 		if AddOn.db.ignoreAllEquipped or not DataStore_Inventory then return 0 end
 
-		character = DataStore_Inventory.db.global.Characters[character] --Mod to account for altoholc passing string for some reason
+		local characterDB = _G.DataStore:GetCharacterDB("DataStore_Containers_Characters") --Mod to account for altoholc passing string for some reason
 
-		local searchedItem = GetItemInfo(searchedID)
+		local searchedItem = C_Item_GetItemInfo(searchedID)
 		
 		local count = 0
-		for _, item in pairs(character.Inventory) do
+		for _, item in pairs(characterDB.Inventory) do
 			if searchedItem and not IgnoreThis[searchedItem] then
 				if type(item) == "number" then		-- saved as a number ? this is the itemID
 					if (item == searchedID) then
@@ -169,19 +156,6 @@ local function HookInventory()
 		end
 
 		return count
-	end
-end
-
-function AddOn:HookAddons(event, addon)
-	if addon == "DataStore_Inventory" then
-		HookInventory()
-		AddOn.hookModules = AddOn.hookModules - 1
-	elseif addon == "DataStore_Containers" then
-		HookContainers()
-		AddOn.hookModules = AddOn.hookModules - 1
-	end
-	if AddOn.hookModules == 0 then
-		self:UnregisterEvent(event)
 	end
 end
 
@@ -273,7 +247,7 @@ function AddOn:PLAYER_LOGIN()
 end
 
 local function GetItemNames(id)
-	local name = GetItemInfo(id)
+	local name = C_Item_GetItemInfo(id)
 	if not name then
 		AddOn.InfoQueued[id] = true
 		return
@@ -323,6 +297,7 @@ function AddOn:OnInitialize()
 	for id,_ in pairs(AddOn.ItemsToFind) do GetItemNames(id) end
 	SetupOptions()
 	CleanUpProfile()
-	
-	self:RegisterEvent("ADDON_LOADED", "HookAddons")
+
+	HookInventory()
+	HookContainers()
 end
